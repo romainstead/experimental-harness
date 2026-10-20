@@ -7,8 +7,20 @@ import json
 import hashlib
 from utils.utils import seed_everything, configure_mlp, train_model, make_dataset
 from torch.utils.data import DataLoader
+import argparse
+import yaml
 
-seed_everything()
+parser = argparse.ArgumentParser()
+parser.add_argument("--seed", type=int, default=0)
+parser.add_argument("--config", type=str)
+parser.add_argument("--eval-test", type=bool, default=False)
+args = parser.parse_args()
+
+with open(args.config, 'r') as f:
+    config = yaml.safe_load(f)
+
+seed_everything(seed=config.get("seed", 0),
+                num_threads=config.get("runtime", {}).get("num_threads", 1))
 
 X, y = load_digits(return_X_y=True)
 idx = np.arange(len(y))
@@ -46,11 +58,18 @@ with open(mpath, "w") as f:
     json.dump(manifest, f, indent=2, ensure_ascii=False)
 
 
-mlp = configure_mlp(n_layers=1, hidden=64, dropout=0.0)
+mlp = configure_mlp(n_layers=config.get("model", "").get("n_layers", 1),
+                    hidden=config.get("model", "").get("hidden", 64),
+                    dropout=config.get("model", "").get("dropout", 0.0))
+
+batch_size = config.get("train", {}).get("batch_size", 64)
+lr = config.get("train", {}).get("lr", 1e-3)
+num_epochs = config.get("train", {}).get("num_epochs", 30)
+device = config.get("runtime", {}).get("device", "cpu")
 
 train_ds, val_ds, test_ds = make_dataset(X, y, train), make_dataset(X, y, val), make_dataset(X, y, test)
-train_dataloader = DataLoader(train_ds, batch_size=64)
-val_dataloader = DataLoader(val_ds, batch_size=64)
-test_dataloader = DataLoader(test_ds, batch_size=64)
+train_dataloader = DataLoader(train_ds, batch_size=batch_size, num_workers=0)
+val_dataloader = DataLoader(val_ds, batch_size=batch_size, num_workers=0)
+test_dataloader = DataLoader(test_ds, batch_size=batch_size, num_workers=0)
 
-trained_model = train_model(mlp, num_epochs=30, train_loader=train_dataloader, val_loader=val_dataloader, lr=0.003)
+trained_model = train_model(mlp, num_epochs=num_epochs, train_loader=train_dataloader, val_loader=val_dataloader, lr=lr)

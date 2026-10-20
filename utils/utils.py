@@ -7,12 +7,13 @@ import torchvision
 from torch.utils.data import TensorDataset
 
 
-def seed_everything(seed=0):
+def seed_everything(seed=0, num_threads=1):
     random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.use_deterministic_algorithms(True)
+    torch.set_num_threads(num_threads)
 
 
 def configure_mlp(n_layers: int, hidden: int, dropout: float):
